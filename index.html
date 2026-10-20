@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="theme-color" content="#101b2a" />
+  <meta name="description" content="1996 年复古篮球经纪人与俱乐部经营模拟游戏。经营经纪公司、签约客户、收购球队、挑战联赛。" />
+  <title>金牌经纪人 1996 | 独立游戏原型</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div class="brand" aria-label="金牌经纪人 1996">
+        <span class="brand-monogram">GA<span class="brand-star">✦</span></span>
+        <span class="brand-name"><strong>金牌经纪人</strong><small>THE GOLDEN AGENT · 1996</small></span>
+      </div>
+      <div class="topbar-right"><span class="offline-tag"><span class="status-pulse"></span> 独立离线版</span><span id="calendar"></span><button class="btn btn-action" id="advanceBtn" type="button">推进一周 <span aria-hidden="true">→</span></button></div>
+    </header>
+    <main class="layout">
+      <aside class="sidebar">
+        <div class="sidebar-label">MANAGEMENT OFFICE</div>
+        <nav id="nav" class="nav" aria-label="游戏导航">
+          <button type="button" data-tab="dashboard" class="nav-link active"><span class="nav-icon">◈</span> 经营总览</button>
+          <button type="button" data-tab="clients" class="nav-link"><span class="nav-icon">♙</span> 我的客户</button>
+          <button type="button" data-tab="market" class="nav-link"><span class="nav-icon">↗</span> 球员市场</button>
+          <button type="button" data-tab="clubs" class="nav-link"><span class="nav-icon">⬡</span> 球队收购</button>
+          <button type="button" data-tab="league" class="nav-link"><span class="nav-icon">▥</span> 赛季联赛</button>
+          <button type="button" data-tab="records" class="nav-link"><span class="nav-icon">▤</span> 存档与记录</button>
+        </nav>
+        <div class="sidebar-note"><span class="eyebrow">GAME GUIDE</span><strong>从一份合同<br />到一座冠军球馆。</strong><p>代理球员赚取佣金。签下潜力股，谈更大的合同，积累资本买下自己的球队。</p><button type="button" data-tab="clubs" class="text-button">看看在售球队 ↗</button></div>
+        <div class="sidebar-version">独立创作原型 v0.1 · 1996</div>
+      </aside>
+      <div class="content-area"><div id="app" aria-live="polite"></div><footer class="footer"><span>GOLDEN AGENT 1996</span><span>本项目为独立创作的演示游戏，与虎扑及原游戏作者无关。</span></footer></div>
+    </main>
+  </div>
+  <div id="toast" role="status" aria-live="polite" class="toast" hidden></div>
+  <input id="importFile" type="file" accept="application/json,.json" hidden />
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
