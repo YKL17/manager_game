@@ -10,49 +10,61 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 3
     steps:
-      - name: Fetch public page and inspect frontend assets
+      - name: Parse downloaded page and frontend structure
         shell: bash
         run: |
           python - <<'PY'
-          import urllib.request, urllib.error, re, json, html, hashlib, urllib.parse
+          import urllib.request, re, json, html, hashlib, urllib.parse, collections
+          from html.parser import HTMLParser
           URL = "https://activity-static.hupu.com/shaper/published/app_4762e3ab42/index.html?night=0"
-          req = urllib.request.Request(URL, headers={
-              "User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36",
-              "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-              "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"
-          })
+          req = urllib.request.Request(URL, headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/131.0.0.0 Safari/537.36", "Accept-Language": "zh-CN,zh;q=0.9,en;q=0.8"})
           try:
               with urllib.request.urlopen(req, timeout=20) as r:
-                  page = r.read(25000000)
-                  print("HTTP_STATUS", r.status)
-                  print("FINAL_URL", r.url)
-                  print("CONTENT_TYPE", r.headers.get("Content-Type"))
+                  page=r.read(25000000)
+                  print("HTTP_STATUS",r.status)
+                  print("CONTENT_TYPE",r.headers.get("Content-Type"))
           except Exception as exc:
-              print("FETCH_ERROR", repr(exc))
+              print("FETCH_ERROR",repr(exc))
               raise SystemExit(0)
-          text = page.decode("utf-8", errors="replace")
+          src=page.decode("utf-8",errors="replace")
           print("HTML_BYTES",len(page))
-          print("HTML_SHA256",hashlib.sha256(page).hexdigest())
-          titles=re.findall(r"<title[^>]*>(.*?)</title>",text,re.S|re.I)
+          print("HTML_HEAD",repr(src[:750]))
+          titles=re.findall(r"<title[^>]*>(.*?)</title>",src,re.I|re.S)
           print("TITLE",html.unescape(titles[0].strip()) if titles else None)
-          scripts=re.findall(r'<script\\b[^>]*\\bsrc=["\\\']([^"\\\']+)',text,re.I)
-          styles=re.findall(r'<link\\b[^>]*\\bhref=["\\\']([^"\\\']+)',text,re.I)
-          inline=re.findall(r'<script\\b[^>]*>(.*?)</script>',text,re.S|re.I)
-          print("EXTERNAL_SCRIPT_COUNT",len(scripts))
-          print("EXTERNAL_SCRIPTS",json.dumps(scripts[:30],ensure_ascii=False))
+          print("HTML_TAG_COUNTS",json.dumps({tag:len(re.findall("<"+tag+r"\b",src,re.I)) for tag in ["script","style","link","img","button","h1","h2","h3","div","section","canvas","iframe"]},ensure_ascii=False))
+          scripts=re.findall(r'<script\b[^>]*\bsrc=["\x27]([^"\x27]+)',src,re.I)
+          styles=re.findall(r'<link\b[^>]*\bhref=["\x27]([^"\x27]+)',src,re.I)
+          inline_scripts=re.findall(r'<script\b[^>]*>(.*?)</script>',src,re.I|re.S)
+          inline_styles=re.findall(r'<style\b[^>]*>(.*?)</style>',src,re.I|re.S)
+          print("SCRIPT_SRCS",json.dumps(scripts[:30],ensure_ascii=False))
           print("LINK_HREFS",json.dumps(styles[:30],ensure_ascii=False))
-          print("INLINE_SCRIPT_LENGTHS",json.dumps([len(v) for v in inline]))
-          print("HAS_REACT",bool(re.search(r"react|__NEXT_DATA__|__webpack_require__|vite",text,re.I)))
-          for phrase in ["金牌经纪人","1984","1996","乔丹","奥拉朱旺","购买球队","GOAT","createRoot","localStorage","fetch("]:
-              loc=text.find(phrase)
-              print("KEYWORD",phrase,"hits",text.count(phrase),"first_position",loc)
-          for src in scripts[:12]:
-              target=urllib.parse.urljoin(URL,src)
+          print("INLINE_SCRIPT_LENGTHS",json.dumps([len(x) for x in inline_scripts]))
+          print("INLINE_CSS_LENGTHS",json.dumps([len(x) for x in inline_styles]))
+          code="\n".join(inline_scripts)
+          print("SCRIPT_FUNCTION_NAMES",re.findall(r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\(",code)[:120])
+          print("JS_TOP_LEVEL_CONSTS",re.findall(r"\b(?:const|let)\s+([A-Za-z_$][\w$]*)\s*=",code)[:160])
+          print("NETWORK_URLS",json.dumps(list(dict.fromkeys(re.findall(r'https?://[A-Za-z0-9./_?&=%\-]+',code)))[:30],ensure_ascii=False))
+          print("GAME_TERMS",json.dumps({x:src.count(x) for x in ["NBA","1984","1996","乔丹","科比","大梦","奥拉朱旺","签约","球队","经纪","球员","赛季","购买球队","GOAT","合同","存档","球探","工资","联赛","球员排名"]},ensure_ascii=False))
+          class Visible(HTMLParser):
+              def __init__(self): super().__init__(); self.excluded=0;self.words=[]
+              def handle_starttag(self,tag,attrs):
+                  if tag in ("style","script","svg"): self.excluded+=1
+              def handle_endtag(self,tag):
+                  if tag in ("style","script","svg"):self.excluded=max(0,self.excluded-1)
+              def handle_data(self,data):
+                  if not self.excluded:
+                      s=" ".join(data.split())
+                      if s:self.words.append(s)
+          parser=Visible();parser.feed(src)
+          print("VISIBLE_WORDS",json.dumps(parser.words[:180],ensure_ascii=False))
+          print("VISIBLE_TEXT_LENGTH",sum(map(len,parser.words)))
+          for key in ["buyTeam","startGame","simulateSeason","initGame","loadGame","saveGame","render","gameState","gameData"]:
+              print("JS_MARKER",key,len(re.findall(re.escape(key),code,re.I)))
+          for script in scripts[:12]:
+              u=urllib.parse.urljoin(URL,script)
               try:
-                  rq=urllib.request.Request(target,headers={"User-Agent":"Mozilla/5.0"})
-                  with urllib.request.urlopen(rq,timeout=15) as r:
-                      chunk=r.read(12000000)
-                      print("ASSET",json.dumps({"url":target,"status":r.status,"bytes_read":len(chunk),"sha256":hashlib.sha256(chunk).hexdigest()},ensure_ascii=False))
-              except Exception as exc:
-                  print("ASSET_ERROR",target,repr(exc))
+                  with urllib.request.urlopen(urllib.request.Request(u,headers={"User-Agent":"Mozilla/5.0"}),timeout=15) as rr:
+                      data=rr.read(12000000)
+                      print("JS_ASSET",json.dumps({"url":u,"status":rr.status,"bytes":len(data),"sha256":hashlib.sha256(data).hexdigest()},ensure_ascii=False))
+              except Exception as e:print("JS_ASSET_ERROR",u,repr(e))
           PY
