@@ -67,4 +67,10 @@ jobs:
                       data=rr.read(12000000)
                       print("JS_ASSET",json.dumps({"url":u,"status":rr.status,"bytes":len(data),"sha256":hashlib.sha256(data).hexdigest()},ensure_ascii=False))
               except Exception as e:print("JS_ASSET_ERROR",u,repr(e))
+
+          print("IFRAME_TAGS",json.dumps(re.findall(r'<iframe\b[^>]*>',src,re.I|re.S)[:10],ensure_ascii=False))
+          print("DIV_TAGS",json.dumps(re.findall(r'<div\b[^>]*>',src,re.I|re.S)[:10],ensure_ascii=False))
+          for word in ["iframe", "srcdoc", "appv_", "review-covers", "window.location", "location.href", "document.write"]:
+              spots=[m.start() for m in list(re.finditer(re.escape(word),src,re.I))[:8]]
+              print("SOURCE_SNIPPETS",word,json.dumps([src[max(0,i-180):i+300] for i in spots],ensure_ascii=False))
           PY
